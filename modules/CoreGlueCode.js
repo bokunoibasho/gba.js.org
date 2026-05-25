@@ -164,6 +164,7 @@ var IodineGUI = {
     startTime: (+(new Date()).getTime()),
     mixerInput: null,
     currentSpeed: [false, 0],
+    speed5xActive: false,
     defaults: {
         timerRate: 8,
         sound: true,
