@@ -162,6 +162,7 @@ var IodineGUI = {
     suspended: false,
     isPlaying: false,
     startTime: (+(new Date()).getTime()),
+    lastTimerTick: 0,
     mixerInput: null,
     currentSpeed: [false, 0],
     defaults: {
@@ -281,6 +282,7 @@ function registerBeforeUnloadHandler(e) {
 function initTimer() {
     IodineGUI.Iodine.setIntervalRate(+IodineGUI.defaults.timerRate);
     IodineGUI.coreTimerID = setInterval(function() {
+        IodineGUI.lastTimerTick = (+(new Date()).getTime());
         IodineGUI.Iodine.timerCallback(((+(new Date()).getTime()) - (+IodineGUI.startTime)) >>> 0);
     }, IodineGUI.defaults.timerRate | 0);
 }
@@ -291,8 +293,26 @@ function calculateTiming() {
 
 function startTimer() {
     IodineGUI.coreTimerID = setInterval(function() {
+        IodineGUI.lastTimerTick = (+(new Date()).getTime());
         IodineGUI.Iodine.timerCallback(((+(new Date()).getTime()) - (+IodineGUI.startTime)) >>> 0);
     }, IodineGUI.defaults.timerRate | 0);
+}
+
+//iOS can stop the core setInterval on screen lock while leaving a stale coreTimerID,
+//which leaves emulation frozen on resume. Restart the interval if it looks dead.
+function restartCoreTimer() {
+    if (!IodineGUI.isPlaying) {
+        return;
+    }
+    var now = (+(new Date()).getTime());
+    if (IodineGUI.coreTimerID && ((now - (+IodineGUI.lastTimerTick)) | 0) < 1000) {
+        return;
+    }
+    if (IodineGUI.coreTimerID) {
+        clearInterval(IodineGUI.coreTimerID);
+        IodineGUI.coreTimerID = null;
+    }
+    startTimer();
 }
 
 function updateTimer(newRate) {

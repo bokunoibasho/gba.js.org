@@ -298,6 +298,10 @@ function registerGUIEvents() {
     else if (typeof document.webkitHidden !== "undefined") {
         addEvent("webkitvisibilitychange", document, webkitVisibilityChangeHandle);
     }
+    //iOS does not fire visibilitychange symmetrically on auto screen lock, so add
+    //extra resume triggers that recover the (possibly killed) core timer:
+    addEvent("pageshow", window, resumeFromBackground);
+    addEvent("focus", window, resumeFromBackground);
     //Run on init as well:
     resizeCanvasFunc();
 }
@@ -539,16 +543,24 @@ function webkitVisibilityChangeHandle() {
 }
 function processVisibilityChange(isHidden) {
     if (!isHidden) {
-        if (IodineGUI.suspended) {
-            IodineGUI.suspended = false;
-            IodineGUI.Iodine.play();
-        }
+        resumeFromBackground();
     }
     else {
         if (document.getElementById("play").className == "hide") {
             IodineGUI.Iodine.pause();
             IodineGUI.suspended = true;
         }
+    }
+}
+function resumeFromBackground() {
+    if (IodineGUI.suspended) {
+        IodineGUI.suspended = false;
+        IodineGUI.Iodine.play();
+    }
+    else if (IodineGUI.isPlaying) {
+        //Returned to the foreground while still "playing": on iOS the core timer may
+        //have been killed during screen lock, so re-establish it if it looks dead.
+        restartCoreTimer();
     }
 }
 function stepVolume(delta) {
