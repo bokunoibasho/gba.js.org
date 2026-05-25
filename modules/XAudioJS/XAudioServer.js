@@ -232,21 +232,21 @@ XAudioServer.prototype.setupWebAudio = function () {
      node if it glitches. Google Chrome never had this issue.
      */
     XAudioJSWebAudioWatchDogLast = (new Date()).getTime();
-    if (!XAudioJSWebAudioWatchDogTimer && navigator.userAgent.indexOf('Gecko/') > -1) {
-        if (XAudioJSWebAudioWatchDogTimer) {
-            clearInterval(XAudioJSWebAudioWatchDogTimer);
-        }
+    if (!XAudioJSWebAudioWatchDogTimer) {
+        //iOS suspends/interrupts the audio context on screen lock, so the resume watchdog
+        //must run everywhere, not just on Gecko. The harsher re-init stays Gecko-only.
+        var isGecko = navigator.userAgent.indexOf('Gecko/') > -1;
         var parentObj = this;
         XAudioJSWebAudioWatchDogTimer = setInterval(function () {
 			if(typeof XAudioJSWebAudioContextHandle.state != "undefined") {
-				if (XAudioJSWebAudioContextHandle.state === 'suspended') {
+				if (XAudioJSWebAudioContextHandle.state === 'suspended' || XAudioJSWebAudioContextHandle.state === 'interrupted') {
 					XAudioJSWebAudioWatchDogLast = (new Date()).getTime();
 					try {
 						XAudioJSWebAudioContextHandle.resume();
 					}
 					catch (e) {}
 				}
-				else {
+				else if (isGecko) {
 					var timeDiff = (new Date()).getTime() - XAudioJSWebAudioWatchDogLast;
 					if (timeDiff > 500) {
 						parentObj.setupWebAudio();
