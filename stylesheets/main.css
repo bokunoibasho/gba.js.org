@@ -226,6 +226,17 @@ li.hide {
     grid-area: l;
     transform-origin: bottom right;
 }
+#touch-5x {
+    grid-area: fivex;
+    justify-self: start;
+    height: 2em;
+    line-height: 2em;
+    border-radius: 1em;
+}
+#touch-5x.active {
+    background: #4caf50;
+    color: #fff;
+}
 #touch-select {
     grid-area: select;
 }
@@ -253,7 +264,7 @@ li.hide {
     justify-items: start;
     grid-template-columns: minmax(9em, 100%) auto auto;
     grid-template-areas:
-        "l ............ r"
+        "l fivex r"
         "dpad b a"
         "select . start";
     padding: calc(1 * var(--font-size));

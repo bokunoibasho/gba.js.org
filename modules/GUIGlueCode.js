@@ -149,6 +149,13 @@ function registerGUIEvents() {
     };
     addEvent("touchend", document, touchendCallback);
     addEvent("touchcancel", document, touchendCallback);
+    //5x speed toggle (tap on/off). Not a GBA key, so it is wired separately:
+    addEvent("click", document.getElementById("touch-5x"), function () {
+        var active = !IodineGUI.speed5xActive;
+        IodineGUI.speed5xActive = active;
+        IodineGUI.Iodine.setSpeed(active ? 5 : 1);
+        this.classList.toggle("active", active);
+    });
     // GBA Bindings
     addEvent("click", document.getElementById("key_a"), function () {
         IodineGUI.toMap = IodineGUI.defaults.keyZonesGBA;
