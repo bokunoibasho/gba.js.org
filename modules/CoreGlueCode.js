@@ -238,7 +238,7 @@ function registerBIOS() {
 
 function downloadROM(gamename) {
     writeRedTemporaryText("Downloading \"" + games[gamename] + ".\"");
-    downloadFile("../binaries/" + gamename + ".gba", registerROM);
+    downloadFile("https://gba.js.org/binaries/" + gamename + ".gba", registerROM);
 }
 
 function registerROM() {
