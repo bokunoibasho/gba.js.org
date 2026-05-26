@@ -228,7 +228,7 @@ window.onload = function() {
 }
 
 function downloadBIOS() {
-    downloadFile("https://gba.js.org/binaries/gba_bios.bin", registerBIOS);
+    downloadFile("../binaries/gba_bios.bin", registerBIOS);
 }
 
 function registerBIOS() {
