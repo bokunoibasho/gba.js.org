@@ -226,16 +226,15 @@ XAudioServer.prototype.setupWebAudio = function () {
     XAudioJSWebAudioAudioNode.connect(XAudioJSWebAudioContextHandle.destination);																//Send and chain the output of the audio manipulation to the system audio output.
 	this.resetCallbackAPIAudioBuffer(XAudioJSWebAudioContextHandle.sampleRate);
 	/*
-     Firefox has a bug in its web audio implementation...
-     The node may randomly stop playing on Mac OS X for no
-     good reason. Keep a watchdog timer to restart the failed
-     node if it glitches. Google Chrome never had this issue.
+     The script processor node can stop firing for no good reason on some
+     platforms: historically on Firefox/Mac OS X, and on iOS Safari after
+     an auto screen-lock interruption (the AudioContext state stays "running"
+     but onaudioprocess never gets called again). Keep a watchdog timer to
+     restart the failed node if it glitches. Also resume the context when
+     it goes to "suspended" / "interrupted" (iOS uses the latter).
      */
     XAudioJSWebAudioWatchDogLast = (new Date()).getTime();
     if (!XAudioJSWebAudioWatchDogTimer) {
-        //iOS suspends/interrupts the audio context on screen lock, so the resume watchdog
-        //must run everywhere, not just on Gecko. The harsher re-init stays Gecko-only.
-        var isGecko = navigator.userAgent.indexOf('Gecko/') > -1;
         var parentObj = this;
         XAudioJSWebAudioWatchDogTimer = setInterval(function () {
 			if(typeof XAudioJSWebAudioContextHandle.state != "undefined") {
@@ -246,7 +245,7 @@ XAudioServer.prototype.setupWebAudio = function () {
 					}
 					catch (e) {}
 				}
-				else if (isGecko) {
+				else {
 					var timeDiff = (new Date()).getTime() - XAudioJSWebAudioWatchDogLast;
 					if (timeDiff > 500) {
 						parentObj.setupWebAudio();

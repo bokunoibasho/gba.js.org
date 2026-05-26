@@ -162,7 +162,6 @@ var IodineGUI = {
     suspended: false,
     isPlaying: false,
     startTime: (+(new Date()).getTime()),
-    lastTimerTick: 0,
     mixerInput: null,
     currentSpeed: [false, 0],
     speed5xActive: false,
@@ -220,8 +219,6 @@ window.onload = function() {
     registerGUIEvents();
     //Register GUI settings.
     registerGUISettings();
-    //Start the iOS screen-lock playback recovery watchdog:
-    startPlaybackWatchdog();
     if (!games[location.hash.substr(1)]) {
         alert("Invalid game request!");
         return;
@@ -285,7 +282,6 @@ function registerBeforeUnloadHandler(e) {
 function initTimer() {
     IodineGUI.Iodine.setIntervalRate(+IodineGUI.defaults.timerRate);
     IodineGUI.coreTimerID = setInterval(function() {
-        IodineGUI.lastTimerTick = (+(new Date()).getTime());
         IodineGUI.Iodine.timerCallback(((+(new Date()).getTime()) - (+IodineGUI.startTime)) >>> 0);
     }, IodineGUI.defaults.timerRate | 0);
 }
@@ -296,94 +292,8 @@ function calculateTiming() {
 
 function startTimer() {
     IodineGUI.coreTimerID = setInterval(function() {
-        IodineGUI.lastTimerTick = (+(new Date()).getTime());
         IodineGUI.Iodine.timerCallback(((+(new Date()).getTime()) - (+IodineGUI.startTime)) >>> 0);
     }, IodineGUI.defaults.timerRate | 0);
-}
-
-//iOS can stop the core setInterval on screen lock while leaving a stale coreTimerID,
-//which leaves emulation frozen on resume. Restart the interval if it looks dead.
-function restartCoreTimer() {
-    if (!IodineGUI.isPlaying) {
-        return;
-    }
-    var now = (+(new Date()).getTime());
-    if (IodineGUI.coreTimerID && ((now - (+IodineGUI.lastTimerTick)) | 0) < 1000) {
-        return;
-    }
-    if (IodineGUI.coreTimerID) {
-        clearInterval(IodineGUI.coreTimerID);
-        IodineGUI.coreTimerID = null;
-    }
-    startTimer();
-}
-
-//iOS leaves the AudioContext "running" after a screen-lock interruption but the
-//ScriptProcessor node stops firing, so the audio buffer stays full and
-//Emulator.audioUnderrunAdjustment() throttles the core to 0 cycles (frozen).
-//Rebuilding the audio graph makes a fresh node and resets the buffer so pacing
-//recovers; this mirrors what iOS does for us on app switch / home-and-back.
-function rebuildAudio() {
-    try {
-        var audio = IodineGUI.mixerInput && IodineGUI.mixerInput.mixer && IodineGUI.mixerInput.mixer.audio;
-        if (audio && typeof audio.setupWebAudio == "function") {
-            audio.setupWebAudio();
-        }
-    }
-    catch (e) {}
-}
-
-function resumeAudioContext() {
-    try {
-        if (typeof XAudioJSWebAudioContextHandle != "undefined" && XAudioJSWebAudioContextHandle &&
-            XAudioJSWebAudioContextHandle.state && XAudioJSWebAudioContextHandle.state != "running") {
-            XAudioJSWebAudioContextHandle.resume();
-        }
-    }
-    catch (e) {}
-}
-
-//Self-healing playback watchdog. requestAnimationFrame reliably resumes after an
-//iOS unlock (the page repaints), unlike visibilitychange/focus on a foregrounded
-//tab, so recovery is driven from it: restart a dead core timer, and rebuild the
-//audio graph when emulation has stalled (no clock progress) though the timer runs.
-function startPlaybackWatchdog() {
-    if (typeof window.requestAnimationFrame != "function") {
-        return;
-    }
-    //Resume a suspended/interrupted context within a user gesture (iOS needs this):
-    document.addEventListener("touchend", resumeAudioContext, true);
-    document.addEventListener("click", resumeAudioContext, true);
-    var lastClock = -1;
-    var stalledSince = 0;
-    function tick() {
-        try {
-            if (IodineGUI.isPlaying && IodineGUI.Iodine) {
-                var now = (+(new Date()).getTime());
-                //Dead core timer (some iOS versions stop setInterval on lock):
-                if (!IodineGUI.coreTimerID ||
-                    (IodineGUI.lastTimerTick && ((now - (+IodineGUI.lastTimerTick)) | 0) > 1000)) {
-                    restartCoreTimer();
-                }
-                //Stalled emulation though the timer runs (dead audio node):
-                var clock = IodineGUI.Iodine.clockCyclesSinceStart;
-                if (typeof clock == "number") {
-                    if (clock !== lastClock) {
-                        lastClock = clock;
-                        stalledSince = now;
-                    }
-                    else if (stalledSince && ((now - stalledSince) | 0) > 700) {
-                        rebuildAudio();
-                        resumeAudioContext();
-                        stalledSince = now; // retry window ~700ms
-                    }
-                }
-            }
-        }
-        catch (e) {}
-        window.requestAnimationFrame(tick);
-    }
-    window.requestAnimationFrame(tick);
 }
 
 function updateTimer(newRate) {
