@@ -52,7 +52,8 @@ function fileLoadROM() {
 function downloadFile(fileName, registrationHandler) {
     var ajax = new XMLHttpRequest();
     ajax.onload = registrationHandler;
-    ajax.open("GET", "./" + fileName, true);
+    var url = /^(https?:)?\/\//.test(fileName) ? fileName : "./" + fileName;
+    ajax.open("GET", url, true);
     ajax.responseType = "arraybuffer";
     ajax.overrideMimeType("text/plain; charset=x-user-defined");
     ajax.send(null);
